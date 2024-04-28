@@ -1,15 +1,26 @@
 # Databricks notebook source
-display(dbutils.fs.ls("dbfs:/databricks-datasets/structured-streaming/events/"))
+#display(dbutils.fs.ls("dbfs:/databricks-datasets/COVID/covid-19-data/live/us-counties.csv"))
+display(dbutils.fs.ls("dbfs:/databricks-datasets/iot-stream/data-device/"))
+
+# COMMAND ----------
+
+spark.read.format('json').load('dbfs:/databricks-datasets/iot-stream/data-device/part-00000.json.gz').display()
 
 # COMMAND ----------
 
 from pyspark.sql.types import *
 from pyspark.sql.functions import *
 
-inputPath = "/databricks-datasets/structured-streaming/events/"
+#inputPath = "/databricks-datasets/structured-streaming/events/"
+inputPath = "/databricks-datasets/iot-stream/data-device/"
 
 # Definindo o Schema do DataSource.
-jsonSchema = StructType([ StructField("time", TimestampType(), True), StructField("action", StringType(), True) ])
+#jsonSchema = StructType([ StructField("time", TimestampType(), True), StructField("action", StringType(), True) ])
+jsonSchema = StructType([ StructField("calories_burnt", LongType(), True), 
+                         StructField("device_id", IntegerType(), True), 
+                         StructField("num_steps", IntegerType(), True), 
+                         StructField("timestamp", TimestampType(), True) 
+                        ])
 
 streamingInputDF = (
   spark
@@ -23,9 +34,9 @@ streamingInputDF = (
 streamingCountsDF = (
   streamingInputDF
     .groupBy(
-      streamingInputDF.action,
-      window(streamingInputDF.time, "1 hour"))
-    .count()
+      streamingInputDF.device_id,
+      window(streamingInputDF.timestamp, "1 hour"))
+    .sum()
 )
 
 # COMMAND ----------
@@ -45,7 +56,7 @@ query = (
 # MAGIC %sql 
 # MAGIC
 # MAGIC /* Consultando os indicadores utilizando SQL, repare que ao longo do tempo, executando diversas vezes esta query faz com que a tabela apresente resultados diferentes ao longo do processo de ingestão. */
-# MAGIC select action, date_format(window.end, "MMM-dd HH:mm") as time, count from contagem order by time, action
+# MAGIC select device_id, date_format(window.end, "MMM-dd HH:mm") as timestamp, count from contagem order by timestamp, device_id
 
 # COMMAND ----------
 
